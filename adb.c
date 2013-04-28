@@ -102,6 +102,7 @@ void adb_init_usb(void)
     char cmdline[1024];
     char serial[64] = { 0 };
     static const char *tag = "androidboot.serialno=";
+
     if(multirom_get_cmdline(cmdline, sizeof(cmdline)) >= 0)
     {
         char *start = strstr(cmdline, tag);
@@ -109,16 +110,17 @@ void adb_init_usb(void)
         {
             start += strlen(tag);
             char *end = strchr(start, ' ');
+
             if(end && end-start < (int)sizeof(serial))
-                strncpy(serial, start, end-serial);
+                strncpy(serial, start, end-start);
         }
     }
 
-    write_file("/sys/class/android_usb/android0/idVendor", "18d1");
-    write_file("/sys/class/android_usb/android0/idProduct", "4e42");
+    write_file("/sys/class/android_usb/android0/idVendor", "12d1");
+    write_file("/sys/class/android_usb/android0/idProduct", "1052");
     write_file("/sys/class/android_usb/android0/functions", "adb");
     write_file("/sys/class/android_usb/android0/iManufacturer", "unknown");
-    write_file("/sys/class/android_usb/android0/iProduct", "Nexus 7");
+    write_file("/sys/class/android_usb/android0/iProduct", "U9200");
     write_file("/sys/class/android_usb/android0/iSerial", serial);
 
     write_file("/sys/class/android_usb/android0/enable", "1");

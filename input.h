@@ -10,7 +10,7 @@
 enum 
 {
     TCHNG_POS       = 0x01,
-    //TCHNG_PRESSURE  = 0x02, // unused
+//    TCHNG_PRESSURE  = 0x02, // unused
     TCHNG_ADDED     = 0x04,
     TCHNG_REMOVED   = 0x08
 };

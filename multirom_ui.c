@@ -18,8 +18,8 @@
 #include "pong.h"
 #include "progressdots.h"
 
-#define HEADER_HEIGHT 75
-#define TAB_BTN_WIDTH 165
+#define HEADER_HEIGHT 65
+#define TAB_BTN_WIDTH 100
 
 static fb_text *tab_texts[TAB_COUNT] = { 0 };
 static fb_rect *selected_tab_rect = NULL;
@@ -70,7 +70,6 @@ static void list_block(char *path, int rec)
 
     closedir(d);
 }
-
 int multirom_ui(struct multirom_status *s, struct multirom_rom **to_boot)
 {
     if(multirom_init_fb() < 0)
@@ -90,6 +89,7 @@ int multirom_ui(struct multirom_status *s, struct multirom_rom **to_boot)
     multirom_ui_init_header();
     multirom_ui_switch(TAB_INTERNAL);
 
+//HEAD
     add_touch_handler(&multirom_ui_touch_handler, NULL);
     start_input_thread();
 
@@ -157,13 +157,13 @@ int multirom_ui(struct multirom_status *s, struct multirom_rom **to_boot)
 
     rm_touch_handler(&multirom_ui_touch_handler, NULL);
 
-    fb_create_msgbox(500, 250, CLR_PRIMARY);
+    fb_create_msgbox(350, 165, CLR_PRIMARY);
 
     switch(exit_ui_code)
     {
         case UI_EXIT_BOOT_ROM:
             *to_boot = selected_rom;
-            fb_msgbox_add_text(-1, 40, SIZE_BIG, "Booting ROM...");
+            fb_msgbox_add_text(-1, 20, SIZE_BIG, "Booting ROM...");
             fb_msgbox_add_text(-1, -1, SIZE_NORMAL, selected_rom->name);
             break;
         case UI_EXIT_REBOOT:
@@ -217,7 +217,7 @@ void multirom_ui_setup_colors(int clr, uint32_t *primary, uint32_t *secondary)
     *primary = clrs[clr][0];
     *secondary = clrs[clr][1];
 }
-
+//HEAD
 void multirom_ui_init_header(void)
 {
     int i, text_x, text_y;
@@ -351,11 +351,14 @@ void multirom_ui_fill_rom_list(listview *view, int mask)
         listview_select_item(view, view->items[0]);
 }
 
+//TOUCH
 int multirom_ui_touch_handler(touch_event *ev, void *data)
 {
     static int touch_count = 0;
+
     if(ev->changed & TCHNG_ADDED)
     {
+
         if(++touch_count == 4)
         {
             multirom_take_screenshot();
@@ -685,13 +688,13 @@ void multirom_ui_tab_rom_set_empty(void *data, int empty)
     }
 }
 
-#define MISCBTN_W 530
-#define MISCBTN_H 100
+#define MISCBTN_W 265
+#define MISCBTN_H 50
 
 #define CLRBTN_W 50
 #define CLRBTN_B 10
 #define CLRBTN_TOTAL (CLRBTN_W+CLRBTN_B)
-#define CLRBTN_Y 1150
+#define CLRBTN_Y 800
 
 typedef struct 
 {
@@ -714,7 +717,7 @@ void *multirom_ui_tab_misc_init(void)
     b->w = MISCBTN_W;
     b->h = MISCBTN_H;
     b->clicked = &multirom_ui_tab_misc_copy_log;
-    button_init_ui(b, "Copy log to /sdcard", SIZE_BIG);
+    button_init_ui(b, "Copy log to /sdcard", SIZE_NORMAL);
     list_add(b, &t->buttons);
 
     y += MISCBTN_H+70;
@@ -744,7 +747,7 @@ void *multirom_ui_tab_misc_init(void)
         b->h = MISCBTN_H;
         b->action = exit_codes[i];
         b->clicked = &multirom_ui_reboot_btn;
-        button_init_ui(b, texts[i], SIZE_BIG);
+        button_init_ui(b, texts[i], SIZE_SMALL);
         list_add(b, &t->buttons);
 
         y += MISCBTN_H+20;
@@ -752,14 +755,16 @@ void *multirom_ui_tab_misc_init(void)
             y += 50;
     }
 
+
     fb_text *text = fb_add_text(0, fb_height-16, WHITE, SIZE_SMALL, "MultiROM v%d with trampoline v%d.",
                                VERSION_MULTIROM, multirom_get_trampoline_ver());
     list_add(text, &t->ui_elements);
 
     char bat_text[16];
     sprintf(bat_text, "Battery: %d%%", multirom_get_battery());
-    text = fb_add_text_long(fb_width-strlen(bat_text)*8, fb_height-16, WHITE, SIZE_SMALL, bat_text);
+    text = fb_add_text_long(fb_width-strlen(bat_text)*10, fb_height-16, WHITE, SIZE_SMALL, bat_text);
     list_add(text, &t->ui_elements);
+
 
     x = fb_width/2 - (CLRS_MAX*CLRBTN_TOTAL)/2;
     uint32_t p, s;
@@ -790,6 +795,7 @@ void *multirom_ui_tab_misc_init(void)
 
         x += CLRBTN_TOTAL;
     }
+
     return t;
 }
 

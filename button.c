@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include "log.h"
+
 
 #include "button.h"
 #include "input.h"
@@ -103,6 +105,7 @@ void button_enable(button *b, int enable)
 int button_touch_handler(touch_event *ev, void *data)
 {
     button *b = (button*)data;
+
 
     if(b->flags & BTN_DISABLED)
         return -1;

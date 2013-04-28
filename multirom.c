@@ -26,13 +26,13 @@
 #define NTFS_BIN "ntfs-3g"
 #define ADBD_BIN "adbd"
 #define INTERNAL_ROM_NAME "Internal"
-#define BOOT_BLK "/dev/block/mmcblk0p2"
+#define BOOT_BLK "/dev/block/mmcblk0p6"
 #define MAX_ROM_NAME_LEN 26
 #define LAYOUT_VERSION "/data/.layout_version"
 #define SECOND_BOOT_KMESG "MultiromSaysNextBootShouldBeSecondMagic108"
 
-#define BATTERY_CAP "/sys/class/power_supply/battery/capacity"
-#define BRIGHTNESS_FILE "/sys/devices/platform/pwm-backlight/backlight/pwm-backlight/brightness"
+#define BATTERY_CAP "/sys/class/power_supply/Battery/capacity"
+#define BRIGHTNESS_FILE "/sys/devices/omapdss/display0/backlight/lcd/brightness"
 
 #define T_FOLDER 4
 
@@ -101,6 +101,7 @@ int multirom(void)
     {
         // just to cache the result so that it does not take
         // any time when the UI is up
+
         multirom_has_kexec();
 
         switch(multirom_ui(&s, &to_boot))
@@ -158,6 +159,9 @@ int multirom(void)
 
     sync();
 
+    fb_clear();
+    fb_close();
+
     return exit;
 }
 
@@ -171,7 +175,6 @@ int multirom_init_fb(void)
         return -1;
     }
 
-    fb_fill(BLACK);
     return 0;
 }
 
@@ -735,6 +738,7 @@ void multirom_dump_status(struct multirom_status *s)
     }
 }
 
+//vuk
 int multirom_prepare_for_boot(struct multirom_status *s, struct multirom_rom *to_boot)
 {
     int exit = EXIT_UMOUNT;
@@ -793,7 +797,7 @@ void multirom_free_rom(void *rom)
 }
 
 #define EXEC_MASK (S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP)
-
+//vuk
 int multirom_prep_android_mounts(struct multirom_rom *rom)
 {
     char in[128];
@@ -861,6 +865,10 @@ int multirom_prep_android_mounts(struct multirom_rom *rom)
                     fputs("    trigger nonencrypted\n", f_out);
                 }
 
+                fputc((int)'#', f_out);
+	  // workaround for stock based roms
+            } else if (strstr(line, "import ") && strstr(line, "ro.hardware")) {
+                fputs("import /init.omap4460.rc\n", f_out);
                 fputc((int)'#', f_out);
             }
             fputs(line, f_out);

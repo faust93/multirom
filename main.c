@@ -61,6 +61,8 @@ int main(int argc, char *argv[])
 
     int exit = multirom();
 
+    ERROR("Exit code v%d\n", exit);
+
     if(exit >= 0)
     {
         if(exit & EXIT_REBOOT_MASK)

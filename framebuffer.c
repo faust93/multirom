@@ -32,6 +32,8 @@ static pthread_mutex_t fb_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct FB *fb = &framebuffers[0];
 
+#define PIXEL_SIZE 4
+
 void fb_destroy_item(void *item); // private!
 
 int vt_set_mode(int graphics)
@@ -54,34 +56,49 @@ struct FB *get_active_fb()
 
 int fb_open(void)
 {
-    int fd = open("/dev/graphics/fb0", O_RDWR);
-    if (fd < 0)
-        return -1;
 
     struct fb_fix_screeninfo fi;
     struct fb_var_screeninfo vi;
 
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &fi) < 0)
-        goto fail;
+    int fd = open("/dev/graphics/fb0", O_RDWR);
+    if (fd < 0)
+        return -1;
+
     if (ioctl(fd, FBIOGET_VSCREENINFO, &vi) < 0)
         goto fail;
 
-    uint32_t *bits = mmap(0, fi.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    vi.bits_per_pixel = PIXEL_SIZE * 8;
 
+    vi.vmode = FB_VMODE_NONINTERLACED;
+    vi.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+
+    if (ioctl(fd, FBIOPUT_VSCREENINFO, &vi) < 0) {
+        ERROR("failed to put fb0 info");
+        close(fd);
+        return -1;
+    }
+
+    if (ioctl(fd, FBIOGET_FSCREENINFO, &fi) < 0)
+        goto fail;
+
+    uint32_t *bits = mmap(0, fi.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (bits == MAP_FAILED)
         goto fail;
 
-    fb_width = vi.xres;
+    vi.xres_virtual = fi.line_length / PIXEL_SIZE;
+
+
+    fb_width = vi.xres_virtual;
     fb_height = vi.yres;
     fb_frozen = 0;
     active_fb = 0;
 
-    uint32_t *b_store = malloc(vi.xres*vi.yres*4);
-    android_memset32(b_store, BLACK, vi.xres*vi.yres*4);
+    uint32_t *b_store = malloc(vi.xres_virtual * vi.yres * PIXEL_SIZE);
+    android_memset32(b_store, BLACK, vi.xres_virtual * vi.yres * PIXEL_SIZE);
 
     fb = &framebuffers[0];
     fb->fd = fd;
-    fb->size = vi.xres*vi.yres*4;
+    fb->size = vi.xres_virtual * vi.yres * PIXEL_SIZE;
     fb->vi = vi;
     fb->fi = fi;
     fb->bits = b_store;
@@ -90,11 +107,11 @@ int fb_open(void)
     ++fb;
 
     fb->fd = fd;
-    fb->size = vi.xres*vi.yres*4;
+    fb->size = vi.xres_virtual * vi.yres * PIXEL_SIZE;
     fb->vi = vi;
     fb->fi = fi;
     fb->bits = b_store;
-    fb->mapped = (void*) (((unsigned) bits) + vi.yres * fi.line_length);
+    fb->mapped = (void*) (((unsigned) bits) + vi.yres * vi.xres_virtual * PIXEL_SIZE);
 
     --fb;
 
@@ -116,20 +133,24 @@ void fb_close(void)
 
 void fb_set_active_framebuffer(unsigned n)
 {
-    if (n > 1) return;
-    fb->vi.yres_virtual = fb->vi.yres * 4;
-    fb->vi.yoffset = n * fb->vi.yres;
-    fb->vi.bits_per_pixel = 4 * 8;
-    if (ioctl(fb->fd, FBIOPUT_VSCREENINFO, &fb->vi) < 0) {
-        ERROR("active fb swap failed");
-    }
+//    if (n > 1) return;
+//    fb->vi.yres_virtual = fb->vi.yres * PIXEL_SIZE;
+//    fb->vi.yoffset = n * fb->vi.yres;
+//    fb->vi.bits_per_pixel = PIXEL_SIZE * 8;
+//    if (ioctl(fb->fd, FBIOPUT_VSCREENINFO, &fb->vi) < 0) {
+//        ERROR("active fb swap failed");
+//    }
+     fb->vi.yoffset = 1;
+     ioctl(fb->fd, FBIOPUT_VSCREENINFO, &fb->vi);
+     fb->vi.yoffset = 0;
+     ioctl(fb->fd, FBIOPUT_VSCREENINFO, &fb->vi);
 }
 
 void fb_update(void)
 {
     active_fb = !active_fb;
-
-    memcpy(get_active_fb()->mapped, fb->bits, fb->size);
+//    memcpy(get_active_fb()->mapped, fb->bits, fb->size);
+    memcpy(fb->mapped, fb->bits, fb->size);
 
     fb_set_active_framebuffer(active_fb);
 }
@@ -465,7 +486,7 @@ void fb_draw_overlay(void)
 
     int i;
     union clr_t *unions = (union clr_t *)fb->bits;
-    const int size = fb_width*fb_height;
+    const int size = 540*fb_height;
     for(i = 0; i < size; ++i)
     {
         unions->c[0] = blend(unions->c[0], BLEND_CLR);

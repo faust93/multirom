@@ -17,8 +17,10 @@
 
 #define MAX_DEVICES 16
 
+static int touchReleased = 0;
+
 // for touch calculation
-static const int screen_res[] = { 800, 1280 };
+static const int screen_res[] = { 540, 960 };
 
 static struct pollfd ev_fds[MAX_DEVICES];
 static unsigned ev_count = 0;
@@ -69,10 +71,8 @@ static void get_abs_min_max(int fd)
     int abs[5];
     if(ioctl(fd, EVIOCGABS(ABS_MT_POSITION_X), abs) >= 0)
         memcpy(mt_range_x, abs+1, 2*sizeof(int));
-
     if(ioctl(fd, EVIOCGABS(ABS_MT_POSITION_Y), abs) >= 0)
         memcpy(mt_range_y, abs+1, 2*sizeof(int));
-
 
     switch_xy = (mt_range_x[1] > mt_range_y[1]);
     if(switch_xy)
@@ -108,6 +108,7 @@ static int ev_init(void)
         ev_fds[ev_count].fd = fd;
         ev_fds[ev_count].events = POLLIN;
 
+
         if (ioctl(fd, EVIOCGBIT(EV_ABS, ABS_CNT), absbit) >= 0)
         {
              if ((absbit[BIT_WORD(ABS_MT_POSITION_X)] & BIT_MASK(ABS_MT_POSITION_X)) &&
@@ -139,7 +140,6 @@ static int ev_get(struct input_event *ev, unsigned dont_wait)
 
     do {
         r = poll(ev_fds, ev_count, dont_wait ? 0 : -1);
-
         if(r > 0) {
             for(n = 0; n < ev_count; n++) {
                 if(ev_fds[n].revents & POLLIN) {
@@ -188,6 +188,8 @@ static void handle_touch_event(struct input_event *ev)
         int has_handlers = (mt_handlers != NULL);
         pthread_mutex_unlock(&touch_mutex);
 
+        touchReleased = 0;
+
         if(!has_handlers)
             return;
 
@@ -220,13 +222,11 @@ static void handle_touch_event(struct input_event *ev)
     // ABS events
     switch(ev->code)
     {
-        case ABS_MT_SLOT:
-            if(ev->value < (int)ARRAY_SIZE(mt_events))
-                mt_slot = ev->value;
-            break;
-        case ABS_MT_TRACKING_ID:
+        case SYN_MT_REPORT:
         {
-            if(ev->value != -1)
+            mt_slot = 0;
+
+            if(touchReleased != 0)
             {
                 mt_events[mt_slot].id = ev->value;
                 mt_events[mt_slot].changed |= TCHNG_ADDED;
@@ -235,12 +235,15 @@ static void handle_touch_event(struct input_event *ev)
                 mt_events[mt_slot].changed |= TCHNG_REMOVED;
             break;
         }
+
         case ABS_MT_POSITION_X:
         case ABS_MT_POSITION_Y:
         {
+            touchReleased = 1;
             if((ev->code == ABS_MT_POSITION_X) ^ (switch_xy != 0))
             {
                 mt_events[mt_slot].x = calc_mt_pos(ev->value, mt_range_x, screen_res[0]);
+
                 if(switch_xy)
                     mt_events[mt_slot].x = screen_res[0] - mt_events[mt_slot].x;
             }
@@ -325,6 +328,7 @@ static void *input_thread_work(void *cookie)
     int res;
     while(input_run)
     {
+
         while(ev_get(&ev, 1) == 0)
         {
             switch(ev.type)
